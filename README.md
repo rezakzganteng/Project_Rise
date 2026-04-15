@@ -72,11 +72,8 @@ get_habits()
 
 ## 📸 Screenshots
 
-(Add screenshots from Soroban Studio here)
+<img width="1532" height="575" alt="image" src="https://github.com/user-attachments/assets/f8601bfc-ae21-4c62-b51c-627adff1d08c" />
 
-* Contract deployed
-* Creating habit
-* Fetching habits
 
 ---
 
@@ -96,4 +93,4 @@ This project demonstrates how blockchain can be used for personal productivity t
 
 ## 👨‍💻 Author
 
-Your Name
+Reza Fahlevi Khuzaini
