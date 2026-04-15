@@ -1,72 +1,137 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, String, Vec, Symbol};
+
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, Env, String, Symbol, Vec,
+};
 
 #[contracttype]
-#[derive(Clone, Debug)]
-pub struct Note {
-    id: u64,
-    title: String,
-    content: String
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Habit {
+    pub id: u64,
+    pub title: String,
+    pub streak: u64,
+    pub completed: bool,
 }
 
-const NOTE_DATA: Symbol = symbol_short!("NOTE_DATA");
+const HABITS: Symbol = symbol_short!("HABITS");
+const NEXT_ID: Symbol = symbol_short!("NEXTID");
 
-#[contract]   
-pub struct NotesContract;
+#[contract]
+pub struct HabitContract;
 
-// This is a sample contract. Replace this placeholder with your own contract logic.
-// A corresponding test example is available in test.rs.
-//
-// For comprehensive examples, visit <https://github.com/stellar/soroban-examples>.
-// The repository includes use cases for the Stellar ecosystem, such as data storage on
-// the blockchain, token swaps, liquidity pools, and more.
-//
-// Refer to the official documentation:
-// <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 #[contractimpl]
-impl NotesContract {
-    pub fn get_notes(env: Env) -> Vec<Note> {
-        // 1. ambil data notes dari storage
-        return env.storage().instance().get(&NOTE_DATA).unwrap_or(Vec::new(&env));
-    }
+impl HabitContract {
+    // Tambah habit baru
+    pub fn create_habit(env: Env, title: String) -> String {
+        if title.len() == 0 {
+            return String::from_str(&env, "Title cannot be empty");
+        }
 
-    // Fungsi untuk membuat note baru
-    pub fn create_note(env: Env, title: String, content: String) -> String {
-        // 1. ambil data notes dari storage
-        let mut notes: Vec<Note> = env.storage().instance().get(&NOTE_DATA).unwrap_or(Vec::new(&env));
-        
-        // 2. Buat object note baru
-        let note = Note {
-            id: env.prng().gen::<u64>(),
-            title: title,
-            content: content,
+        let mut habits: Vec<Habit> = env
+            .storage()
+            .instance()
+            .get(&HABITS)
+            .unwrap_or(Vec::new(&env));
+
+        let next_id: u64 = env.storage().instance().get(&NEXT_ID).unwrap_or(1);
+
+        let habit = Habit {
+            id: next_id,
+            title,
+            streak: 0,
+            completed: false,
         };
-        
-        // 3. tambahkan note baru ke notes lama
-        notes.push_back(note);
-        
-        // 4. simpan notes ke storage
-        env.storage().instance().set(&NOTE_DATA, &notes);
-        
-        return String::from_str(&env, "Notes berhasil ditambahkan");
+
+        habits.push_back(habit);
+        env.storage().instance().set(&HABITS, &habits);
+        env.storage().instance().set(&NEXT_ID, &(next_id + 1));
+
+        String::from_str(&env, "Habit created")
     }
 
-    // Fungsi untuk menghapus notes berdasarkan id
-    pub fn delete_note(env: Env, id: u64) -> String {
-        // 1. ambil data notes dari storage 
-        let mut notes: Vec<Note> = env.storage().instance().get(&NOTE_DATA).unwrap_or(Vec::new(&env));
+    // Ambil semua habit
+    pub fn get_habits(env: Env) -> Vec<Habit> {
+        env.storage()
+            .instance()
+            .get(&HABITS)
+            .unwrap_or(Vec::new(&env))
+    }
 
-        // 2. cari index note yang akan dihapus menggunakan perulangan
-        for i in 0..notes.len() {
-            if notes.get(i).unwrap().id == id {
-                notes.remove(i);
+    // Tandai habit selesai (menambah streak)
+    pub fn complete_habit(env: Env, id: u64) -> String {
+        let mut habits: Vec<Habit> = env
+            .storage()
+            .instance()
+            .get(&HABITS)
+            .unwrap_or(Vec::new(&env));
 
-                env.storage().instance().set(&NOTE_DATA, &notes);
-                return String::from_str(&env, "Berhasil hapus notes");
+        for i in 0..habits.len() {
+            let h = habits.get(i).unwrap();
+
+            if h.id == id {
+                let updated = Habit {
+                    id: h.id,
+                    title: h.title,
+                    streak: h.streak + 1,
+                    completed: true,
+                };
+
+                habits.set(i, updated);
+                env.storage().instance().set(&HABITS, &habits);
+
+                return String::from_str(&env, "Habit completed");
             }
         }
 
-        return String::from_str(&env, "Notes tidak ditemukan")
+        String::from_str(&env, "Habit not found")
+    }
+
+    // Reset status harian (optional)
+    pub fn reset_status(env: Env, id: u64) -> String {
+        let mut habits: Vec<Habit> = env
+            .storage()
+            .instance()
+            .get(&HABITS)
+            .unwrap_or(Vec::new(&env));
+
+        for i in 0..habits.len() {
+            let h = habits.get(i).unwrap();
+
+            if h.id == id {
+                let updated = Habit {
+                    id: h.id,
+                    title: h.title,
+                    streak: h.streak,
+                    completed: false,
+                };
+
+                habits.set(i, updated);
+                env.storage().instance().set(&HABITS, &habits);
+
+                return String::from_str(&env, "Habit reset");
+            }
+        }
+
+        String::from_str(&env, "Habit not found")
+    }
+
+    // Hapus habit
+    pub fn delete_habit(env: Env, id: u64) -> String {
+        let mut habits: Vec<Habit> = env
+            .storage()
+            .instance()
+            .get(&HABITS)
+            .unwrap_or(Vec::new(&env));
+
+        for i in 0..habits.len() {
+            if habits.get(i).unwrap().id == id {
+                habits.remove(i);
+                env.storage().instance().set(&HABITS, &habits);
+                return String::from_str(&env, "Habit deleted");
+            }
+        }
+
+        String::from_str(&env, "Habit not found")
     }
 }
 
